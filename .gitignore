@@ -1,0 +1,26 @@
+# 👉 Ignore virtual environment
+venv/
+
+# 👉 Ignore Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 👉 Ignore environment config files
+.env
+.env.*
+
+# 👉 Ignore logs and temp files
+*.log
+*.tmp
+
+# 👉 Ignore model weights or large files (optional)
+*.pkl
+*.h5
+*.onnx
+*.pt
+*.tflite
+
+# 👉 Ignore Jupyter and VS Code (optional)
+.ipynb_checkpoints/
+.vscode/
