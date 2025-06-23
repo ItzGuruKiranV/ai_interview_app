@@ -7,14 +7,24 @@ nltk.download('wordnet')
 
 lemmatizer = WordNetLemmatizer()
 
-def extract_text_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    doc.close()
-    return text
+def extract_text_from_pdf(pdf_input):
+    try:
+        if isinstance(pdf_input, (str, bytes)):
+            # It's a path or binary file, load from stream
+            doc = fitz.open(stream=pdf_input, filetype="pdf")
+        else:
+            # It's already a file-like object (BytesIO)
+            doc = fitz.open(stream=pdf_input.read(), filetype="pdf")
 
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+        return text
+
+    except Exception as e:
+        print("❌ Failed to open PDF:", e)
+        return ""
 def extract_multiline_field(start, text):
     pattern = re.compile(rf"{start}:(.*?)(?=\n\w+:|\Z)", re.DOTALL | re.IGNORECASE)
     match = pattern.search(text)
