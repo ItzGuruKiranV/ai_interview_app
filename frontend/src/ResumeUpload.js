@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import TestPage from "./TestPage";
+import { useNavigate } from "react-router-dom";
 
-function App() {
+function ResumeUpload() {
   const [file, setFile] = useState(null);
   const [score, setScore] = useState("");
+  const navigate = useNavigate();
 
   const handleUpload = async () => {
     if (!file) {
@@ -26,22 +27,16 @@ function App() {
   return (
     <div style={{ padding: 40 }}>
       <h2>Upload Resume PDF</h2>
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={(e) => setFile(e.target.files[0])}
-      />
-      <br />
-      <br />
-      <button onClick={handleUpload}>Submit Resume</button>
+      <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} />
+      <br /><br />
+      <button onClick={handleUpload}>Submit</button>
       <p style={{ marginTop: 20 }}>Score: {score}</p>
 
-      <hr style={{ margin: "40px 0" }} />
-
-      {/* TestPage */}
-      <TestPage />
+      <button onClick={() => navigate("/test")} style={{ marginTop: 20 }}>
+        Start Test
+      </button>
     </div>
   );
 }
 
-export default App;
+export default ResumeUpload;

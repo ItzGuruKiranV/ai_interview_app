@@ -13,7 +13,10 @@ __pycache__/
 # 👉 Ignore logs and temp files
 *.log
 *.tmp
+frontend/node_modules/
 
+# React build
+frontend/build/
 # 👉 Ignore model weights or large files (optional)
 *.pkl
 *.h5

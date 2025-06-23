@@ -1,12 +1,11 @@
 import cv2
 import numpy as np
+import os
 from keras.models import load_model
 
-# ✅ Load the emotion recognition model
-model = load_model(
-    r"D:\PrectisePython\ai_interview_app_\emotion_test\_mini_XCEPTION.102-0.66.hdf5",
-    compile=False
-)
+# ✅ Load the emotion recognition model using dynamic path
+model_path = os.path.join(os.path.dirname(__file__), "_mini_XCEPTION.102-0.66.hdf5")
+model = load_model(model_path, compile=False)
 
 # ✅ Load Haar cascade using OpenCV's built-in path
 face_cascade = cv2.CascadeClassifier(
@@ -81,4 +80,4 @@ if session_scores:
     avg_score = sum(session_scores) / len(session_scores)
     print(f"\n🔎 Average Emotion Score: {avg_score:.2f} / 10")
 else:
-    print("\n⚠️ No emotions were detected.")
+    print("\n⚠ No emotions were detected.")
