@@ -1,45 +1,76 @@
-import React, { useState } from "react";
-import TestPage from "./TestPage";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import {
+  SignIn,
+  SignUp,
+  SignedIn,
+  SignedOut,
+  RedirectToSignIn,
+  UserButton,
+} from "@clerk/clerk-react";
+
+
+
+import Home from "./pages/Home";
+import ResumeUpload from "./pages/ResumeUpload";
+import TestPage from "./pages/TestPage";
+
 
 function App() {
-  const [file, setFile] = useState(null);
-  const [score, setScore] = useState("");
-
-  const handleUpload = async () => {
-    if (!file) {
-      alert("Please upload a file!");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("http://127.0.0.1:8000/resume-upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-    setScore(data.resume_score || data.error);
-  };
-
   return (
     <div style={{ padding: 40 }}>
-      <h2>Upload Resume PDF</h2>
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={(e) => setFile(e.target.files[0])}
-      />
-      <br />
-      <br />
-      <button onClick={handleUpload}>Submit Resume</button>
-      <p style={{ marginTop: 20 }}>Score: {score}</p>
+      <SignedIn>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <h2>AI Interview Portal</h2>
+          <UserButton />
+        </div>
+      </SignedIn>
 
-      <hr style={{ margin: "40px 0" }} />
+      <Routes>
+        {/* Home */}
+        <Route
+          path="/"
+          element={
+            <SignedIn>
+              <Home />
+            </SignedIn>
+          }
+        />
 
-      {/* TestPage */}
-      <TestPage />
+        {/* Upload Resume */}
+        <Route
+          path="/resume-upload"
+          element={
+            <SignedIn>
+              <ResumeUpload />
+            </SignedIn>
+          }
+        />
+
+        {/* Test Page */}
+        <Route
+          path="/test"
+          element={
+            <SignedIn>
+              <TestPage />
+            </SignedIn>
+          }
+        />
+
+        {/* Auth */}
+        <Route path="/sign-in" element={<SignIn routing="path" path="/sign-in" />} />
+        <Route path="/sign-up" element={<SignUp routing="path" path="/sign-up" />} />
+
+        {/* Redirect unauthenticated */}
+        <Route
+          path="*"
+          element={
+            <SignedOut>
+              <RedirectToSignIn />
+            </SignedOut>
+          }
+        />
+      </Routes>
     </div>
   );
 }
