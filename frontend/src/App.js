@@ -9,19 +9,18 @@ import {
   UserButton,
 } from "@clerk/clerk-react";
 
-
-
+import Navbar from "./components/Navbar"; // ✅ Importing Navbar
 import Home from "./pages/Home";
 import ResumeUpload from "./pages/ResumeUpload";
 import TestPage from "./pages/TestPage";
 
-
 function App() {
   return (
-    <div style={{ padding: 40 }}>
+    <div className="min-h-screen">
+      {/* Show Navbar and UserButton only when signed in */}
       <SignedIn>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>AI Interview Portal</h2>
+        <Navbar />
+        <div className="absolute top-4 right-4">
           <UserButton />
         </div>
       </SignedIn>
@@ -57,11 +56,11 @@ function App() {
           }
         />
 
-        {/* Auth */}
+        {/* Auth Pages */}
         <Route path="/sign-in" element={<SignIn routing="path" path="/sign-in" />} />
         <Route path="/sign-up" element={<SignUp routing="path" path="/sign-up" />} />
 
-        {/* Redirect unauthenticated */}
+        {/* Redirect unauthenticated users */}
         <Route
           path="*"
           element={
