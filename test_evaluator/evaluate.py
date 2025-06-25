@@ -11,13 +11,7 @@ api_key = os.getenv("COHERE_API_KEY")
 # Initialize cohere client
 co = cohere.Client(api_key)
 
-
 def evaluate_answer(question: str, answer: str) -> str:
-    """
-    Evaluate a candidate's answer using Cohere LLM.
-    Returns a string with score and feedback.
-    """
-
     if not answer.strip():
         return "Score: 0/10\nFeedback: No answer provided."
 

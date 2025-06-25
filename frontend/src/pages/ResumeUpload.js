@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../Api";
+
 
 function ResumeUpload() {
   const [file, setFile] = useState(null);
@@ -7,29 +9,31 @@ function ResumeUpload() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleUpload = async () => {
-    if (!file) {
-      alert("Please upload a file!");
-      return;
-    }
+const handleUpload = async () => {
+  if (!file) {
+    alert("Please upload a file!");
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    setLoading(true);
+  const formData = new FormData();
+  formData.append("file", file);
+  setLoading(true);
 
-    try {
-      const res = await fetch("http://127.0.0.1:8000/resume-upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      setScore(data.resume_score || data.error);
-    } catch (err) {
-      setScore("Error uploading resume.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const res = await api.post("/resume-upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    setScore(res.data.resume_score || res.data.error);
+  } catch (err) {
+    console.error("Upload failed:", err);
+    setScore("Error uploading resume.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center justify-center px-4 py-10">

@@ -27,3 +27,5 @@ frontend/build/
 # 👉 Ignore Jupyter and VS Code (optional)
 .ipynb_checkpoints/
 .vscode/
+
+/dataset

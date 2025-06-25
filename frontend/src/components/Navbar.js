@@ -39,6 +39,12 @@ function Navbar() {
           >
             Test
           </button>
+          
+          <button
+            className="px-5 py-2 rounded-full bg-black text-white font-semibold shadow hover:bg-blue-600 hover:text-white transition duration-200 border border-white"
+          >
+           History
+          </button>
         </div>
       </div>
     </nav>
