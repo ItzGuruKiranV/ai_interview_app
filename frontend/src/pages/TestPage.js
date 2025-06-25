@@ -10,17 +10,15 @@ function TestPage() {
   const [getHint, setGetHint] = useState("");
   const [showHint, setShowHint] = useState(false);
   const [showActions, setShowActions] = useState(false);
-  const [testResult, setTestResult] = useState("");
 
   const fetchQuestion = async () => {
     try {
       const techStack = "python";
       const res = await api.get("/get-question", {
-        params: { user_id: "test_user_123", tech_stack: techStack },
+        params: { user_id: "abc", tech_stack: techStack },
       });
       setQuestion(res.data.question);
       setEvaluation("");
-      setTestResult("");
       setAnswer("");
       setShowActions(true);
     } catch (err) {
@@ -41,26 +39,15 @@ function TestPage() {
   const evaluate = async () => {
     try {
       const res = await api.post("/evaluate-answer", {
-        question,
-        answer,
+        user_id : 'abc',
+        code : answer,
       });
-      setEvaluation(res.data.evaluation);
+      setEvaluation(res.data.review);
     } catch (err) {
       console.error("Evaluation failed:", err);
     }
   };
 
-  const runTestCases = async () => {
-    try {
-      const res = await api.post("/test-code", {
-        user_id: "test_user_123",
-        code: answer,
-      });
-      setTestResult(JSON.stringify(res.data.result, null, 2));
-    } catch (err) {
-      console.error("Test case execution failed:", err);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-10 px-6 text-gray-800">
@@ -114,12 +101,6 @@ function TestPage() {
                 {showActions && (
                   <div className="flex gap-4 mt-4">
                     <button
-                      onClick={runTestCases}
-                      className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
-                    >
-                      Test
-                    </button>
-                    <button
                       onClick={evaluate}
                       className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
                     >
@@ -159,13 +140,6 @@ function TestPage() {
             </div>
           )}
         </div>
-
-        {testResult && (
-          <div className="mt-8 bg-indigo-50 p-4 rounded-md border border-indigo-200">
-            <h3 className="text-xl font-semibold text-indigo-800 mb-2">Test Case Result</h3>
-            <pre className="whitespace-pre-wrap text-gray-700">{testResult}</pre>
-          </div>
-        )}
 
         {evaluation && (
           <div className="mt-8 bg-gray-100 p-4 rounded-md border border-gray-300">

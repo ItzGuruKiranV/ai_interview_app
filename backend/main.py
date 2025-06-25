@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from backend.database import Base, engine, SessionLocal
 from resume_module.scorer import score_resume_from_bytes
 from test_evaluator.evaluate import evaluate_answer
-from test_evaluator.questions import generate_question_and_testcases, get_test_cases_for_user, test_case_store
+from test_evaluator.questions import generate_question_and_testcases, question_store
 from test_evaluator.hint_generator import get_hint_for_question
 from history_tracking.user_history import UserHistory
 
@@ -15,9 +15,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+origins = "http://localhost:3000"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[origins],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -87,50 +89,14 @@ def ask_hint(data: HintRequest):
         return {"hint": "Please provide a question."}
     return {"hint": get_hint_for_question(data.question)}
 
-@app.post("/test-code")
-def test_code(req: TestRequest):
-    test_cases_raw = get_test_cases_for_user(req.user_id)
-    
-    if not test_cases_raw or test_cases_raw.strip() == "":
-        return {"error": "No test cases available for this user. Please fetch a new question."}
 
-    try:
-        test_cases = json.loads(test_cases_raw)
-    except json.JSONDecodeError:
-        return {"error": "Test cases are not in valid JSON format."}
-
-    results = []
-
-    for case in test_cases:
-        input_str = case["input"]
-        expected = str(case["expected"])
-        full_code = f"""{req.code}\nprint(solution({input_str}))"""
-
-        try:
-            with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=False) as f:
-                f.write(full_code)
-                f.flush()
-                output = subprocess.check_output(["python", f.name], timeout=2, text=True).strip()
-        except subprocess.CalledProcessError as e:
-            output = e.output.strip()
-        except Exception as e:
-            output = str(e)
-
-        results.append({
-            "input": input_str,
-            "expected": expected,
-            "actual": output,
-            "passed": output == expected
-        })
-
-    return {"result": results}
 
 
 @app.post("/evaluate-answer")
 def submit_code(req: SubmitRequest):
     from test_evaluator.evaluate import co
 
-    question = test_case_store.get(req.user_id, {}).get("question")
+    question = question_store.get(req.user_id, {}).get("question")
     if not question:
         return {"error": "No question found for user."}
 
@@ -154,12 +120,13 @@ Score: <score>/10
 Feedback: <1-2 lines summary>
 """
 
-    response = co.generate(
+    response = co.chat(
         model="command-r",
-        prompt=prompt,
+        message=prompt,
         max_tokens=200,
     )
-    return {"review": response.generations[0].text.strip()}
+    review = response.text.strip()
+    return {"review": review}
 
 @app.get("/history")
 def get_history(user_id: str, db: Session = Depends(get_db)):
