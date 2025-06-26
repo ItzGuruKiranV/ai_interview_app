@@ -13,65 +13,37 @@ import Navbar from "./components/Navbar"; // ✅ Importing Navbar
 import Home from "./pages/Home";
 import ResumeUpload from "./pages/ResumeUpload";
 import TestPage from "./pages/TestPage";
+import History from "./pages/history";
+import InterviewPage from "./pages/interview";
 
 function App() {
   return (
     <div className="min-h-screen">
-      {/* Show Navbar and UserButton only when signed in */}
       <SignedIn>
         <Navbar />
         <div className="absolute top-4 right-4">
           <UserButton />
         </div>
+
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/resume-upload" element={<ResumeUpload />} />
+          <Route path="/test" element={<TestPage />} />
+          <Route path = "/history" element={<History/>}/>
+          <Route path = "/interview" element={<InterviewPage/>}/>
+        </Routes>
       </SignedIn>
 
-      <Routes>
-        {/* Home */}
-        <Route
-          path="/"
-          element={
-            <SignedIn>
-              <Home />
-            </SignedIn>
-          }
-        />
-
-        {/* Upload Resume */}
-        <Route
-          path="/resume-upload"
-          element={
-            <SignedIn>
-              <ResumeUpload />
-            </SignedIn>
-          }
-        />
-
-        {/* Test Page */}
-        <Route
-          path="/test"
-          element={
-            <SignedIn>
-              <TestPage />
-            </SignedIn>
-          }
-        />
-
-        {/* Auth Pages */}
-        <Route path="/sign-in" element={<SignIn routing="path" path="/sign-in" />} />
-        <Route path="/sign-up" element={<SignUp routing="path" path="/sign-up" />} />
-
-        {/* Redirect unauthenticated users */}
-        <Route
-          path="*"
-          element={
-            <SignedOut>
-              <RedirectToSignIn />
-            </SignedOut>
-          }
-        />
-      </Routes>
+      <SignedOut>
+        <Routes>
+          <Route path="/sign-in" element={<SignIn routing="path" path="/sign-in" />} />
+          <Route path="/sign-up" element={<SignUp routing="path" path="/sign-up" />} />
+          <Route path="*" element={<RedirectToSignIn />} />
+        </Routes>
+      </SignedOut>
     </div>
   );
 }
+
 
 export default App;
