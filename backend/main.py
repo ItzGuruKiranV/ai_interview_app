@@ -30,7 +30,7 @@ class AnswerRequest(BaseModel):
     answer: str
 
 class HintRequest(BaseModel):
-    question: str
+    code: str
 
 class TestRequest(BaseModel):
     user_id: str
@@ -80,14 +80,44 @@ async def resume_upload(file: UploadFile = File(...)):
 
 @app.get("/get-question")
 def get_question(user_id: str, tech_stack: str):
-    question = generate_question_and_testcases(user_id, tech_stack)
-    return {"question": question}
+    generate_question_and_testcases(user_id, tech_stack)  # Generates and stores
+
+    # Now fetch the generated data
+    question_data = question_store.get(user_id)
+
+    if not question_data:
+        return {"error": "Failed to generate question."}
+
+    return {
+        "question": question_data.get("question", ""),
+        "testcases": question_data.get("testcases", [])
+    }
+
+
+
 
 @app.post("/ask-hint")
-def ask_hint(data: HintRequest):
-    if not data.question:
-        return {"hint": "Please provide a question."}
-    return {"hint": get_hint_for_question(data.question)}
+def ask_hint(data: TestRequest):
+    from test_evaluator.evaluate import co
+
+    prompt = f"""
+You are an expert developer. Give suggestions to improve this code:
+- Spot logical flaws
+- Suggest refactoring
+- Recommend performance or readability improvements
+
+Code:
+{data.code}
+
+Return detailed and clear suggestions:
+"""
+
+    response = co.chat(
+        model="command-r",
+        message=prompt,
+        max_tokens=300,
+    )
+    return {"hint": response.text.strip()}
 
 
 
@@ -140,3 +170,24 @@ def get_history(user_id: str, db: Session = Depends(get_db)):
             "timestamp": r.timestamp.isoformat()
         } for r in records
     ]
+@app.post("/code-hint")
+def code_hint(data: TestRequest):
+    from test_evaluator.evaluate import co
+    prompt=f"""
+You are a Python syntax assistant.
+
+The user is writing some code. Based on the partial code provided below, suggest the most likely correct **Python syntax** continuation or correction.
+
+Only return one corrected or completed line of Python **code**, no explanation.
+
+Code:
+{data.code}
+
+Response (1 line of Python syntax only):
+"""
+    response=co.chat(
+        model="command-r",
+        message=prompt,
+        max_tokens=60,
+    )
+    return {"hint": response.text.strip()}

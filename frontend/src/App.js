@@ -13,6 +13,8 @@ import Navbar from "./components/Navbar"; // ✅ Importing Navbar
 import Home from "./pages/Home";
 import ResumeUpload from "./pages/ResumeUpload";
 import TestPage from "./pages/TestPage";
+import AIInterview from "./pages/AIInterview";
+
 
 function App() {
   return (
@@ -45,6 +47,7 @@ function App() {
             </SignedIn>
           }
         />
+  
 
         {/* Test Page */}
         <Route
@@ -69,6 +72,15 @@ function App() {
             </SignedOut>
           }
         />
+        <Route
+          path="/interview"
+          element={
+            <SignedIn>
+              <AIInterview />
+            </SignedIn>
+          }
+        />
+
       </Routes>
     </div>
   );
