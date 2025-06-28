@@ -1,9 +1,26 @@
-import React from "react";
+import React , {useEffect}  from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
+import api from "../Api";
 
 
 function Home() {
   const navigate = useNavigate();
+    const { user } = useUser();
+
+useEffect(() => {
+  if (user) {
+    const email = user?.primaryEmailAddress?.emailAddress;
+
+    api.post("/register", { email })
+      .then((res) => {
+        console.log("User registered:", res.data);
+      })
+      .catch((err) => {
+        console.error("Error registering user:", err);
+      });
+  }
+}, [user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white text-gray-800">
@@ -67,7 +84,7 @@ function Home() {
       <footer className="py-8 px-4 bg-blue-900 text-white text-center">
         <p className="font-semibold">XYZ College, Department of Computer Science</p>
         <p className="text-sm mt-1">
-          Developed by Team IntelliPrep | <a className="underline" href="https://github.com/your-repo">GitHub</a>
+          Developed by Team IntelliPrep | <a className="underline" href="https://github.com/ItzGuruKiranV/ai_interview_app">GitHub</a>
         </p>
       </footer>
     </div>

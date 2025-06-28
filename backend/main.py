@@ -1,15 +1,21 @@
-from fastapi import FastAPI, UploadFile, File, Depends
+from fastapi import FastAPI, UploadFile, File, Depends , Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel 
 from sqlalchemy.orm import Session
 from backend.database import Base, engine, SessionLocal
 from resume_module.scorer import score_resume_from_bytes
-from test_evaluator.evaluate import evaluate_answer
 from test_evaluator.questions import generate_question_and_testcases, question_store
 from test_evaluator.hint_generator import get_hint_for_question
 from history_tracking.user_history import UserHistory
+from backend.models import User
+from interview_module.evaluator import evaluate_answer
+from interview_module.interview_question_generatr import generate_next_question
+from typing import List
+from faster_whisper import WhisperModel
+import tempfile
+import os
 
-import subprocess, tempfile, json
+model = WhisperModel("base", device="cpu")
 
 Base.metadata.create_all(bind=engine)
 
@@ -43,6 +49,19 @@ class SubmitRequest(BaseModel):
 class QuestionRequest(BaseModel):
     user_id: str
     tech_stack: str
+
+class EmailSchema(BaseModel):
+    email: str
+
+class QAItem(BaseModel):
+    question: str
+    answer: str
+
+class InterviewRequest(BaseModel):
+    chat_history: List[QAItem]
+
+class InterviewResponse(BaseModel):
+    next_question: str
 
 # DB DEPENDENCY
 def get_db():
@@ -158,6 +177,7 @@ Feedback: <1-2 lines summary>
     review = response.text.strip()
     return {"review": review}
 
+
 @app.get("/history")
 def get_history(user_id: str, db: Session = Depends(get_db)):
     records = db.query(UserHistory).filter(UserHistory.user_id == user_id).all()
@@ -191,3 +211,45 @@ Response (1 line of Python syntax only):
         max_tokens=60,
     )
     return {"hint": response.text.strip()}
+def get_user(email: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        return {"email": user.email}
+    return {"message": "User not found"}
+
+@app.post("/register")
+def register_user(data: EmailSchema, db: Session = Depends(get_db)):
+    email = data.email
+    print("✅ REGISTERED:", email)
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        new_user = User(email=email)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    return {"message": "User registered"}
+
+
+@app.post("/interview-question", response_model=InterviewResponse)
+def send_question(request: InterviewRequest):
+    next_question = generate_next_question(request.chat_history)
+    return {"next_question": next_question}
+
+@app.post("/interview-evaluate")
+def evaluate(request: InterviewRequest):
+    feedback = evaluate_answer(request.chat_history)
+    return {"feedback": feedback}
+
+
+@app.post("/interview-transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+        f.write(await file.read())
+        f.flush()
+        path = f.name
+
+    segments, _ = model.transcribe(path)
+    os.remove(path)
+
+    full_text = " ".join([s.text for s in segments])
+    return {"text": full_text.strip()}
