@@ -1,8 +1,11 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 function Navbar() {
   const navigate = useNavigate();
+  const [showTestModal, setShowTestModal] = useState(false);
+
 
   return (
     <nav className="bg-black shadow-lg">
@@ -34,7 +37,7 @@ function Navbar() {
             Resume
           </button>
           <button
-            onClick={() => navigate("/test")}
+            onClick={() => setShowTestModal(true)}
             className="px-5 py-2 rounded-full bg-black text-white font-semibold shadow hover:bg-blue-600 hover:text-white transition duration-200 border border-white"
           >
             Test
@@ -46,6 +49,18 @@ function Navbar() {
           >
             History
           </button>
+          {showTestModal && (
+            <div className="modal-overlay">
+              <div className="modal-box">
+                <h2>🧪 Enter Test</h2>
+                <p>Are you sure you want to start the test now?</p>
+                <div className="modal-actions">
+                  <button onClick={() => navigate("/test")}>Yes, Start</button>
+                  <button onClick={() => setShowTestModal(false)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

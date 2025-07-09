@@ -6,7 +6,8 @@ import api from "../Api";
 
 function Home() {
   const navigate = useNavigate();
-    const { user } = useUser();
+  const { user } = useUser();
+
 
 useEffect(() => {
   if (user) {

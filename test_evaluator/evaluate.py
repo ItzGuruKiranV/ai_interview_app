@@ -1,14 +1,16 @@
+# test_evaluator/evaluate.py
+
 import os
+import cohere
 from dotenv import load_dotenv
 from pathlib import Path
-import cohere
 
-# Load .env from parent directory
+# Load .env from project root
 env_path = Path(__file__).resolve().parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
 api_key = os.getenv("COHERE_API_KEY")
 
-# Initialize cohere client
+# Init Cohere client
 co = cohere.Client(api_key)
 
 def evaluate_answer(question: str, answer: str) -> str:
@@ -21,25 +23,15 @@ You are an expert Python interviewer.
 Evaluate the candidate's answer based on correctness, clarity, and relevance.
 
 ### Evaluation Rules:
-- BIG UPDATE:: IF THE CODE IS BLANK JUST RETURN 0
-- If answer is blank or completely unrelated → Score: 0/10
-- If answer is partially correct → Score: 3-6/10
-- If answer is mostly correct with small issues → Score: 7-9/10
-- If answer is perfect → Score: 10/10
+- If code is blank or unrelated → Score: 0/10
+- Partial code or wrong logic → Score: 3-6/10
+- Mostly correct with small issues → Score: 7-9/10
+- Fully correct, clean code → Score: 10/10
 
-### Respond in EXACTLY this format:
+### Format:
 Score: <score>/10
-Feedback: <one-line constructive feedback>
+Feedback: <short 1-line feedback>
 
-### Example:
-Question: Write a Python function to add two numbers.
-Answer: def add(a, b): return a + b
-
-Response:
-Score: 10/10
-Feedback: Perfect implementation.
-
-Now evaluate this:
 Question: {question}
 Answer: {answer}
 """
@@ -51,10 +43,10 @@ Answer: {answer}
             max_tokens=100,
             temperature=0.2
         )
-        output = response.text
+        output = response.text.strip()
 
         if "Score:" not in output or "Feedback:" not in output:
-            return f"❌ Invalid response from LLM:\n{output}"
+            return f"❌ Invalid LLM response:\n{output}"
 
         return output
 

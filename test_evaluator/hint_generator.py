@@ -1,28 +1,40 @@
+# test_evaluator/hint_generator.py
+
 import cohere
 import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Load .env
-env_path = Path(__file__).resolve().parent.parent / '.env'
+# Load .env for COHERE_API_KEY
+env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 api_key = os.getenv("COHERE_API_KEY")
 co = cohere.Client(api_key)
 
-def get_hint_for_question(question: str) -> str:
-    prompt = f"""
-    You are a helpful Python mentor. A student asked: "{question}"
-    
-    Give them a HINT, not the full code.
 
-    - Include syntax structure if needed.
-    - Do NOT write actual code unless it's just a small example.
-    - Make it sound like you're helping them think.
-
-    Hint:
+def get_syntax_hint(code: str) -> str:
     """
+    Given partial user code, returns a syntax correction or completion.
+    """
+    prompt = f"""
+You are a Python syntax assistant.
+
+The user is writing some code. Based on the partial code provided below,
+suggest the most likely correct **Python syntax** continuation or correction.
+
+Only return one corrected or completed line of Python **code**, no explanation.
+
+Code:
+{code}
+
+Response (1 line of Python syntax only):
+"""
     try:
-        response = co.chat(model="command-r", message=prompt)
+        response = co.chat(
+            model="command-r",
+            message=prompt,
+            max_tokens=60,
+        )
         return response.text.strip()
     except Exception as e:
         return f"❌ LLM Error: {str(e)}"

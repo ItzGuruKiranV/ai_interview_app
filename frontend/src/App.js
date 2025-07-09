@@ -21,18 +21,71 @@ function App() {
   return (
     <div className="min-h-screen">
       <SignedIn>
-        <Navbar />
-        <div className="absolute top-4 right-4">
-          <UserButton />
-        </div>
-
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/resume-upload" element={<ResumeUpload />} />
+          {/* ✅ Routes with Navbar */}
+          <Route
+            path="/"
+            element={
+              <>
+                <Navbar />
+                <div className="absolute top-4 right-4">
+                  <UserButton />
+                </div>
+                <Home />
+              </>
+            }
+          />
+          <Route
+            path="/resume-upload"
+            element={
+              <>
+                <Navbar />
+                <div className="absolute top-4 right-4">
+                  <UserButton />
+                </div>
+                <ResumeUpload />
+              </>
+            }
+          />
+          <Route
+            path="/interview"
+            element={
+              <>
+                <Navbar />
+                <div className="absolute top-4 right-4">
+                  <UserButton />
+                </div>
+                <AIInterview />
+              </>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <>
+                <Navbar />
+                <div className="absolute top-4 right-4">
+                  <UserButton />
+                </div>
+                <History />
+              </>
+            }
+          />
+          <Route
+            path="/interview-old"
+            element={
+              <>
+                <Navbar />
+                <div className="absolute top-4 right-4">
+                  <UserButton />
+                </div>
+                <InterviewPage />
+              </>
+            }
+          />
+
+          {/* ❌ NO Navbar or UserButton on TestPage */}
           <Route path="/test" element={<TestPage />} />
-          <Route path="/interview" element={<AIInterview />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/interview-old" element={<InterviewPage />} />
         </Routes>
       </SignedIn>
 
