@@ -7,7 +7,7 @@ co =co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
 
 
-def evaluate_answer(interaction_list):
+def evaluate_interview_answer(interaction_list):
     formatted = "\n".join([f"AI: {q}\nUser: {a}" for q, a in interaction_list])
 
     prompt = f"""

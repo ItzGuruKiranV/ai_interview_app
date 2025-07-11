@@ -56,7 +56,7 @@ Output:
         )
 
         raw = response.generations[0].text.strip()
-        print("🧠 Full AI Response:\n", raw)
+        # print("🧠 Full AI Response:\n", raw)
 
         # Attempt to extract both parts: question and hidden testcases
         split_parts = raw.split('---')
@@ -169,7 +169,7 @@ Do NOT explain anything. Do NOT add any extra newlines. Just follow the exact fo
         )
 
         raw = response.generations[0].text.strip()
-        print("🧠 Raw AI Response:\n", raw)
+        # print("🧠 Raw AI Response:\n", raw)
 
         # Extract question
         question_block_match = re.search(r"🧠 Coding Question(.*)", raw, re.DOTALL)
@@ -210,7 +210,7 @@ Generate exactly 8 hidden test cases in this JSON array format ONLY. Do not expl
             )
 
             hidden_text = hidden_response.generations[0].text.strip()
-            print(f"🔍 Hidden raw response (attempt {attempts+1}):\n", hidden_text)
+            # print(f"🔍 Hidden raw response (attempt {attempts+1}):\n", hidden_text)
 
             try:
                 # Extract valid JSON list if wrapped in explanation
