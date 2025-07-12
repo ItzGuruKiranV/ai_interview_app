@@ -1,101 +1,195 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import Webcam from "react-webcam";
+import ReactPlayer from "react-player";
 import api from "../Api";
 
 export default function InterviewPage() {
   const [started, setStarted] = useState(false);
   const [round, setRound] = useState(1);
   const [question, setQuestion] = useState("");
+  const [avatarVideoUrl, setAvatarVideoUrl] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [feedback, setFeedback] = useState("");
   const [recording, setRecording] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [typing, setTyping] = useState(false);
 
   const webcamRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  const chatHistoryRef = useRef([]);
+  const techStack = "Data Structures and Algorithms";
 
-  // Start Interview
-  const handleStart = () => {
+  const handleStart = async () => {
     setStarted(true);
-    fetchNextQuestion([]);
+    chatHistoryRef.current = [];
+    setRound(1);
+    await fetchQuestion();
   };
 
-  // Speak helper
-  const speak = (text) => new Promise(res => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US"; u.rate = 1; u.onend = res;
-    window.speechSynthesis.speak(u);
-  });
+  const fetchQuestion = async () => {
+    try {
+      setTyping(true);
 
-  // Fetch next question
-  const fetchNextQuestion = async (history) => {
-    const res = await api.post("/interview-question", { chat_history: history });
-    setQuestion(res.data.next_question);
-    await speak(res.data.next_question);
-    recordAnswer();
-  };
+      // Step 1: Get interview question
+      const res = await api.post("/interview-question", {
+        chat_history: chatHistoryRef.current,
+        tech_stack: techStack,
+      });
 
-  // Record answer
-  const recordAnswer = async () => {
-    setRecording(true);
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    mediaRecorderRef.current = new MediaRecorder(stream);
-    mediaRecorderRef.current.ondataavailable = e => chunksRef.current.push(e.data);
-    mediaRecorderRef.current.onstop = async () => {
-      setRecording(false);
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const form = new FormData();
-      form.append("file", blob);
-      const tr = await api.post("/interview-transcribe", form);
-      setTranscript(tr.data.text);
-    };
-    mediaRecorderRef.current.start();
-    setTimeout(async () => {
-      mediaRecorderRef.current.stop();
-      stream.getTracks().forEach(t => t.stop());
-      const hist = [{ question, answer: transcript }];
-      if (round < 5) {
-        setRound(r => r + 1);
-        fetchNextQuestion(hist);
+      const q = res.data.next_question;
+      setQuestion(q);
+      setTyping(false);
+
+      // Step 2: Get avatar video from backend
+      const avatarRes = await api.post("/did-avatar", { text: q });
+
+      if (avatarRes.data.video_url) {
+        setAvatarVideoUrl(avatarRes.data.video_url);
       } else {
-        const evalRes = await api.post("/interview-evaluate", { chat_history: hist });
+        setAvatarVideoUrl("");
+        console.warn("No video URL received from avatar API.");
+      }
+
+      // Step 3: Use browser speech to speak question
+      await speak(q);
+
+      // Step 4: Begin speech recognition
+      startListening(q);
+    } catch (err) {
+      console.error("❌ Error fetching question or avatar:", err);
+      setTyping(false);
+    }
+  };
+
+  const speak = (text) =>
+    new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 1;
+      utterance.onend = resolve;
+      window.speechSynthesis.speak(utterance);
+    });
+
+  const startListening = (currentQuestion) => {
+    const recognition =
+      new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.onstart = () => setRecording(true);
+
+    const timeout = setTimeout(() => recognition.stop(), 15000); // 15s limit
+
+    recognition.onresult = async (e) => {
+      clearTimeout(timeout);
+      const text = e.results[0][0].transcript;
+      setTranscript(text);
+      setRecording(false);
+
+      chatHistoryRef.current.push({ question: currentQuestion, answer: text });
+
+      if (round < 5) {
+        setRound((r) => r + 1);
+        await fetchQuestion();
+      } else {
+        const evalRes = await api.post("/interview-evaluate", {
+          chat_history: chatHistoryRef.current,
+          tech_stack: techStack,
+        });
         setFeedback(evalRes.data.feedback);
       }
-    }, 7000);
+    };
+
+    recognition.onerror = () => {
+      clearTimeout(timeout);
+      setTranscript("❌ Could not understand.");
+      setRecording(false);
+    };
+
+    recognition.start();
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="p-4 bg-white shadow flex justify-between">
-        <h1 className="text-xl font-bold">🎙️ AI Interview – Question {round}/5</h1>
-        {started && <p className="text-red-500">{recording ? "Recording..." : ""}</p>}
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 p-6 flex flex-col items-center">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl p-8 border border-blue-200">
+        {/* Header */}
+        <div className="flex justify-between items-center border-b pb-4 mb-6">
+          <h1 className="text-3xl font-bold text-blue-900">
+            🎙️ Mock Interview {started ? `— Question ${round}/5` : ""}
+          </h1>
+          {recording && (
+            <span className="text-red-600 text-sm animate-pulse">
+              🎧 Listening...
+            </span>
+          )}
+        </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 p-4">
-        {started ? (
-          <>
-            <div className="bg-gray-200 rounded p-4">
-              <h2 className="font-semibold mb-2">AI asks:</h2>
-              <p className="text-lg">{question}</p>
-            </div>
-            <div className="bg-gray-200 rounded p-4 flex flex-col items-center">
-              <Webcam audio={false} ref={webcamRef}
-                mirrored className="w-full rounded" />
-              <textarea className="mt-2 w-full p-2"
-                value={transcript} placeholder="Transcribed answer" readOnly />
-            </div>
-          </>
+        {/* Start Button */}
+        {!started ? (
+          <div className="text-center py-20">
+            <button
+              onClick={handleStart}
+              className="bg-blue-700 text-white px-12 py-4 text-xl rounded-full hover:bg-blue-800 transition shadow-lg"
+            >
+              🚀 Start Interview
+            </button>
+          </div>
         ) : (
-          <div className="col-span-2 text-center p-12">
-            <button className="px-6 py-4 bg-blue-600 text-white rounded-lg"
-              onClick={handleStart}>Start Interview</button>
-          </div>
-        )}
-        {feedback && (
-          <div className="col-span-2 bg-green-100 p-4 rounded">
-            <h2 className="font-semibold">Final Feedback:</h2>
-            <p>{feedback}</p>
-          </div>
+          <>
+            {/* Avatar */}
+            <div className="flex justify-center mb-6">
+              <div className="rounded-xl overflow-hidden border shadow-md">
+                {avatarVideoUrl ? (
+                  <ReactPlayer
+                    url={avatarVideoUrl}
+                    playing
+                    controls={false}
+                    loop={false}
+                    width="320px"
+                    height="auto"
+                  />
+                ) : (
+                  <div className="w-80 h-48 bg-blue-100 flex items-center justify-center text-blue-500 text-xl">
+                    🎬 Loading AI...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Question */}
+            <div className="mb-6">
+              <div className="bg-gray-50 border border-blue-100 rounded-lg p-4 text-lg font-medium text-gray-800 shadow-inner">
+                {typing ? "✍️ Typing..." : question}
+              </div>
+            </div>
+
+            {/* Webcam & Transcript */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="border rounded-lg overflow-hidden shadow-md">
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  className="w-full aspect-video object-cover"
+                />
+              </div>
+              <div className="bg-gray-100 border rounded-lg shadow p-4 flex flex-col">
+                <h2 className="text-gray-700 font-semibold mb-2">
+                  🗣️ Your Answer:
+                </h2>
+                <div className="bg-white p-3 rounded border text-gray-800 min-h-[100px] text-base">
+                  {transcript || (recording ? "🎤 Listening..." : "Awaiting...")}
+                </div>
+              </div>
+            </div>
+
+            {/* Final Feedback */}
+            {feedback && (
+              <div className="mt-6 bg-green-50 border border-green-300 p-6 rounded-xl shadow-lg">
+                <h2 className="text-xl font-semibold text-green-800 mb-2">
+                  ✅ Final Feedback
+                </h2>
+                <p className="text-green-700 text-base">{feedback}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

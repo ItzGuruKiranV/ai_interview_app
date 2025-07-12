@@ -3,61 +3,54 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
-import tempfile
 import os
+import time
+from dotenv import load_dotenv
 
-# DB & Models
+# Load .env variables
+load_dotenv()
+
+# ========== DATABASE & MODELS ==========
 from backend.database import Base, engine, SessionLocal
 from backend.models import User
 from history_tracking.user_history import UserHistory
 
-# Resume & Coding Evaluation Modules
+# ========== MODULES ==========
 from resume_module.scorer import score_resume_from_bytes
 from test_evaluator.questions import generate_question_and_testcases, question_store, get_hidden_testcases
 from test_evaluator.evaluate import evaluate_answer as evaluate_code_answer
 from test_evaluator.hint_generator import get_syntax_hint
 from test_evaluator.docker_runner import run_in_docker
-
-# Interview Module
 from interview_module.interview_question_generatr import generate_next_question
 from interview_module.evaluator import evaluate_interview_answer
-from interview_module.speech_to_text import transcribe_audio_file
 
-# FastAPI Init
+# ========== D-ID INTEGRATION ==========
+from d_id.client import DId
+did = DId(api_key=os.getenv("DID_API_KEY"))
+
+# ========== FASTAPI INIT ==========
 app = FastAPI()
 
-# Whisper Model (you can delete if you now use `speech_to_text.py`)
-from faster_whisper import WhisperModel
-whisper_model = WhisperModel("base", device="cpu")
-
-# Create DB Tables
-Base.metadata.create_all(bind=engine)
-
-# CORS Setup
-origins = ["http://localhost:3000"]
+# ========== CORS ==========
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ====================
-# Pydantic Schemas
-# ====================
-class TestRequest(BaseModel):
-    user_id: str
-    code: str
+# ========== DATABASE SETUP ==========
+Base.metadata.create_all(bind=engine)
 
-class SubmitRequest(BaseModel):
-    user_id: str
-    code: str
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-class QuestionRequest(BaseModel):
-    user_id: str
-    tech_stack: str
-
+# ========== Pydantic SCHEMAS ==========
 class EmailSchema(BaseModel):
     email: str
 
@@ -67,109 +60,93 @@ class QAItem(BaseModel):
 
 class InterviewRequest(BaseModel):
     chat_history: List[QAItem]
+    tech_stack: str = "data structure"
 
 class InterviewResponse(BaseModel):
     next_question: str
 
-# ====================
-# DB Dependency
-# ====================
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+class SubmitRequest(BaseModel):
+    user_id: str
+    code: str
 
-# ====================
-# General Routes
-# ====================
+class TestRequest(BaseModel):
+    user_id: str
+    code: str
+
+class ScriptInput(BaseModel):
+    text: str
+
+# ========== ROUTES ==========
+
 @app.get("/")
 def root():
-    return {"message": "Backend running"}
+    return {"message": "✅ Backend Running!"}
 
 @app.post("/register")
 def register_user(data: EmailSchema, db: Session = Depends(get_db)):
     email = data.email
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        new_user = User(email=email)
-        db.add(new_user)
+    if not db.query(User).filter(User.email == email).first():
+        db.add(User(email=email))
         db.commit()
     return {"message": "User registered"}
 
 @app.get("/history")
 def get_history(user_id: str, db: Session = Depends(get_db)):
-    records = db.query(UserHistory).filter(UserHistory.user_id == user_id).all()
-    return [{
-        "type": r.action_type,
-        "question": r.question,
-        "answer": r.answer,
-        "evaluation": r.evaluation,
-        "timestamp": r.timestamp.isoformat()
-    } for r in records]
+    return [
+        {
+            "type": r.action_type,
+            "question": r.question,
+            "answer": r.answer,
+            "evaluation": r.evaluation,
+            "timestamp": r.timestamp.isoformat()
+        }
+        for r in db.query(UserHistory).filter(UserHistory.user_id == user_id).all()
+    ]
 
-# ====================
-# Resume Scoring
-# ====================
 @app.post("/resume-upload")
 async def resume_upload(file: UploadFile = File(...)):
     file_bytes = await file.read()
     score = score_resume_from_bytes(file_bytes)
     if score is None:
         return {"error": "Could not process resume."}
-    
+
     db = SessionLocal()
-    history = UserHistory(
+    db.add(UserHistory(
         user_id="test_user_123",
         action_type="resume_upload",
         question="N/A",
         answer="N/A",
         evaluation=f"Resume Score: {score:.2f} / 100"
-    )
-    db.add(history)
+    ))
     db.commit()
     db.close()
-    
+
     return {"resume_score": f"{score:.2f} / 100"}
 
-# ====================
-# Coding Evaluation
-# ====================
 @app.get("/get-question")
 def get_question(user_id: str, tech_stack: str):
     generate_question_and_testcases(user_id, tech_stack)
-    question_data = question_store.get(user_id)
-    if not question_data:
+    q_data = question_store.get(user_id)
+    if not q_data:
         return {"error": "Failed to generate question."}
-    
     return {
-        "question": question_data.get("question", ""),
-        "testcases": question_data.get("sample_cases", [])
+        "question": q_data.get("question", ""),
+        "testcases": q_data.get("sample_cases", [])
     }
 
 @app.post("/evaluate-answer")
 def evaluate(req: SubmitRequest):
-    question = question_store.get(req.user_id, {}).get("question")
-    if not question:
-        return {"error": "No question found for user."}
-    
-    review = evaluate_code_answer(question, req.code)
-    return {"review": review}
+    q = question_store.get(req.user_id, {}).get("question")
+    return {"review": evaluate_code_answer(q, req.code)} if q else {"error": "No question found"}
 
 @app.post("/code-hint")
 def code_hint(req: TestRequest):
-    hint = get_syntax_hint(req.code)
-    return {"hint": hint}
+    return {"hint": get_syntax_hint(req.code)}
 
 @app.post("/run-tests")
 def run_tests(req: SubmitRequest):
-    testcases = get_hidden_testcases(req.user_id)
-    if not testcases:
-        return {"result": []}
-    
     results = []
-    for i, case in enumerate(testcases):
+    for i, case in enumerate(get_hidden_testcases(req.user_id) or []):
         result = run_in_docker(req.code, case["input"], str(case["expected_output"]))
         results.append({
             "testcase": i + 1,
@@ -178,25 +155,35 @@ def run_tests(req: SubmitRequest):
             "actual": result["actual_output"],
             "passed": result["passed"]
         })
-    
     return {"result": results}
 
-# ====================
-# Interview Realistic AI Routes
-# ====================
 @app.post("/interview-question", response_model=InterviewResponse)
-def send_question(request: InterviewRequest):
-    return {"next_question": generate_next_question(request.chat_history)}
+def send_question(req: InterviewRequest):
+    return {
+        "next_question": generate_next_question(
+            chat_history=req.chat_history,
+            tech_stack=req.tech_stack
+        )
+    }
 
 @app.post("/interview-evaluate")
-def evaluate_interview(request: InterviewRequest):
-    return {"feedback": evaluate_interview_answer(request.chat_history)}
+def evaluate_interview(req: InterviewRequest):
+    return {"feedback": evaluate_interview_answer(req.chat_history)}
 
-@app.post("/interview-transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
-        f.write(await file.read())
-        f.flush()
-        text = transcribe_audio_file(f.name)
-        os.unlink(f.name)
-    return {"text": text}
+@app.post("/did-avatar")
+def create_did_avatar(body: ScriptInput):
+    try:
+        # Step 1: Request avatar generation
+        result = did.text_to_video(script=body.text)
+        video_id = result.get("id")
+
+        # Step 2: Poll for video readiness
+        for _ in range(20):  # max ~20 seconds
+            status = did.get_video_status(video_id)
+            if status["status"] == "done":
+                return {"video_url": status["result_url"]}
+            time.sleep(1)
+
+        return {"error": "Video generation timed out."}
+    except Exception as e:
+        return {"error": str(e)}
