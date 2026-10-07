@@ -1,93 +1,135 @@
-import React , {useEffect}  from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
+import { ArrowRight, Braces, Clock3, FileText, Mic2, Sparkles } from "lucide-react";
 import api from "../Api";
 
+const practiceOptions = [
+  {
+    title: "Review your resume",
+    description: "Get a section-by-section score from a PDF.",
+    icon: FileText,
+    path: "/resume-upload",
+    label: "Resume",
+  },
+  {
+    title: "Solve a coding prompt",
+    description: "Work through a Python interview challenge.",
+    icon: Braces,
+    path: "/test",
+    label: "Coding",
+  },
+  {
+    title: "Practice out loud",
+    description: "Run a technical mock interview with feedback.",
+    icon: Mic2,
+    path: "/interview-old",
+    label: "Interview",
+  },
+];
+
+const sessionLabels = {
+  interview: "Mock interview",
+  coding: "Coding practice",
+  resume: "Resume review",
+};
 
 function Home() {
   const navigate = useNavigate();
   const { user } = useUser();
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const email = user?.primaryEmailAddress?.emailAddress;
 
+  useEffect(() => {
+    if (!email) {
+      setHistoryLoading(false);
+      return;
+    }
 
-useEffect(() => {
-  if (user) {
-    const email = user?.primaryEmailAddress?.emailAddress;
-
-    api.post("/register", { email })
-      .then((res) => {
-        console.log("User registered:", res.data);
-      })
-      .catch((err) => {
-        console.error("Error registering user:", err);
-      });
-  }
-}, [user]);
+    api.post("/register", { email }).catch(() => {});
+    api.get("/history", { params: { email } })
+      .then((res) => setHistory(res.data.history || []))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [email]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white text-gray-800">
-      {/* 🔹 Hero Section */}
-      <section
-        className="bg-cover bg-center bg-no-repeat min-h-screen flex items-center justify-center"
-        style={{
-          backgroundImage: "url('/Humanoid.png')",
-        }}
-      >
-        <div className="bg-black bg-opacity-60 p-10 rounded-lg text-white text-center max-w-3xl">
-          <h1 className="text-5xl font-extrabold mb-4">InterviewElevate</h1>
-          <p className="text-xl mb-6">Where Preparation Meets AI-Driven Insight</p>
-          <button
-            className="bg-white text-blue-800 font-semibold py-2 px-6 rounded hover:bg-gray-200 transition"
-            onClick={() => navigate("/resume-upload")}
-          >
-            Upload Resume
-          </button>
-        </div>
-      </section>
+    <div className="dashboard-shell">
+      <main className="dashboard-main">
+        <header className="dashboard-heading">
+          <div>
+            <p className="dashboard-eyebrow">PRACTICE WORKSPACE</p>
+            <h1>Pick up where you left off{user?.firstName ? `, ${user.firstName}` : ""}.</h1>
+            <p className="dashboard-subtitle">Choose a focused session. Your recent work is kept below.</p>
+          </div>
+          <div className="dashboard-session-count">
+            <Sparkles size={17} aria-hidden="true" />
+            <span>{history.length} saved {history.length === 1 ? "session" : "sessions"}</span>
+          </div>
+        </header>
 
-      {/* 🔹 Features Section */}
-      <section className="py-16 px-4 bg-white">
-        <h2 className="text-3xl font-bold text-center mb-10 text-blue-700">Key Features</h2>
-        <div className="max-w-6xl mx-auto grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 text-center">
-          {[
-            { title: "Resume Analysis", desc: "AI-driven scoring and keyword checks." },
-            { title: "AI Mock Interview", desc: "Simulated questions based on your resume." },
-            { title: "Emotion & Speech Feedback", desc: "Analyze facial expressions and voice tone." },
-            { title: "Personalized Suggestions", desc: "Targeted advice to improve your performance." },
-          ].map((f, idx) => (
-            <div
-              key={idx}
-              className="border rounded-xl shadow-lg p-6 hover:shadow-xl transition bg-blue-50"
-            >
-              <h3 className="text-xl font-semibold text-blue-900">{f.title}</h3>
-              <p className="mt-2 text-sm text-gray-700">{f.desc}</p>
+        <section className="dashboard-practice" aria-labelledby="practice-title">
+          <div className="dashboard-section-heading">
+            <div>
+              <p className="dashboard-eyebrow">THREE WAYS TO PRACTICE</p>
+              <h2 id="practice-title">Start a session</h2>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+          <div className="practice-grid">
+            {practiceOptions.map(({ title, description, icon: Icon, path, label }) => (
+              <button
+                className="practice-option"
+                key={path}
+                onClick={() => navigate(path)}
+                aria-label={`${label}: ${title}`}
+              >
+                <span className="practice-icon"><Icon size={20} aria-hidden="true" /></span>
+                <span className="practice-copy">
+                  <span className="practice-label">{label}</span>
+                  <span className="practice-title">{title}</span>
+                  <span className="practice-description">{description}</span>
+                </span>
+                <ArrowRight className="practice-arrow" size={18} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </section>
 
-      {/* 🔹 How It Works */}
-      <section className="py-16 px-4 bg-blue-50">
-        <h2 className="text-3xl font-bold text-center mb-10 text-blue-700">How It Works</h2>
-        <div className="max-w-4xl mx-auto grid gap-6 grid-cols-1 md:grid-cols-3 text-center">
-          {["Upload Resume", "Take Mock Interview", "Get Feedback"].map((step, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl shadow-md p-6 border-t-4 border-blue-400"
-            >
-              <div className="text-4xl font-bold text-blue-600 mb-2">{i + 1}</div>
-              <p className="font-medium text-gray-800">{step}</p>
+        <section className="dashboard-history" aria-labelledby="history-title">
+          <div className="dashboard-section-heading">
+            <div>
+              <p className="dashboard-eyebrow">YOUR ACTIVITY</p>
+              <h2 id="history-title">Recent sessions</h2>
             </div>
-          ))}
-        </div>
-      </section>
+            <button className="dashboard-text-link" onClick={() => navigate("/history")}>
+              View all <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          </div>
 
-      {/* 🔹 Footer */}
-      <footer className="py-8 px-4 bg-blue-900 text-white text-center">
-        <p className="font-semibold">XYZ College, Department of Computer Science</p>
-        <p className="text-sm mt-1">
-          Developed by Team IntelliPrep | <a className="underline" href="https://github.com/ItzGuruKiranV/ai_interview_app">GitHub</a>
-        </p>
-      </footer>
+          {historyLoading ? (
+            <div className="dashboard-empty">Loading your recent sessions...</div>
+          ) : history.length ? (
+            <div className="session-list">
+              {history.slice(0, 5).map((session) => (
+                <article className="session-row" key={session.id}>
+                  <span className="session-icon"><Clock3 size={18} aria-hidden="true" /></span>
+                  <div className="session-info">
+                    <strong>{sessionLabels[session.session_type] || session.session_type}</strong>
+                    <span>{session.tech_stack || new Date(session.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {session.score && <span className="session-score">{session.score}</span>}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty">
+              <p>No sessions yet.</p>
+              <button onClick={() => navigate("/interview-old")}>Start a mock interview <ArrowRight size={15} /></button>
+            </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

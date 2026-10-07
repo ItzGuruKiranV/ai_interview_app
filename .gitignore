@@ -9,6 +9,7 @@ __pycache__/
 # 👉 Ignore environment config files
 .env
 .env.*
+history.db
 
 # 👉 Ignore logs and temp files
 *.log

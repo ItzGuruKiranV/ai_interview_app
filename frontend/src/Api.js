@@ -1,13 +1,25 @@
 // src/api.js
 import axios from "axios";
 
-// Create an Axios instance with baseURL
 const api = axios.create({
-  baseURL: "http://localhost:8000",
-   // change this if your backend URL differs
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+let tokenProvider;
+
+api.interceptors.request.use(async (config) => {
+  if (tokenProvider) {
+    const token = await tokenProvider();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const setTokenProvider = (provider) => {
+  tokenProvider = provider;
+};
 
 export default api;
